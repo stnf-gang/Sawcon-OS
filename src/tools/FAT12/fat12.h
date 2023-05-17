@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #define SCIM_VERSION "0.0.02"
 
@@ -73,3 +74,4 @@ typedef struct DirectoryEntry_t {
 } __attribute__((packed)) DirectoryEntry_t;
 
 BootRecord_t *ReadBootRecord(FILE* Disk);
+bool ReadSectors(FILE *Disk, BootRecord_t *p_BootRecord, uint32_t LBA, uint32_t Count, void *BufferOut);

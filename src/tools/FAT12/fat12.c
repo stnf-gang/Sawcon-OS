@@ -77,3 +77,8 @@ BootRecord_t *ReadBootRecord(FILE* Disk) {
     }
     return returnVal;
 }
+
+bool ReadSectors(FILE *Disk, BootRecord_t *p_BootRecord, uint32_t LBA, uint32_t Count, void *BufferOut) {
+    // todo
+    return true;
+}
