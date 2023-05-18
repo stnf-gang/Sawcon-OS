@@ -4,7 +4,7 @@
 // This file was written for the SawconOS Host Tools
 //
 // Written: Sunday 14th May 2023
-// Last Updated: Wednesday 17th May 2023
+// Last Updated: Thursday 18th May 2023
 // 
 // Written by Gabriel Jickells
 
@@ -14,23 +14,26 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define SCIM_VERSION "0.0.02"
+#define SCIM_VERSION "0.0.04"
 
 char *HelpPage[] = {
     "-h / --help : Displays information about how to use the tool",
     "-m / --mode : Sets the mode of the tool",
     "-d / --disk : Selects the disk image to manipulate",
+    "-i / --input : Selects the Input File",
     NULL
 };
 
 char *ModePage[] = {
     NULL,
     "read",
+    "list",
     NULL
 };
 
 enum ModeDefs {
     M_READ = 1,
+    M_LIST = 2,
 };
 
 typedef struct BootRecord_t {
@@ -75,3 +78,5 @@ typedef struct DirectoryEntry_t {
 
 BootRecord_t *ReadBootRecord(FILE* Disk);
 bool ReadSectors(FILE *Disk, BootRecord_t *p_BootRecord, uint32_t LBA, uint32_t Count, void *BufferOut);
+DirectoryEntry_t *ReadRootDirectory(FILE *Disk, BootRecord_t *p_BootRecord, uint32_t *DataSectionOut);
+DirectoryEntry_t *FindFile(BootRecord_t *p_BootRecord, DirectoryEntry_t *Directory, char *Name);
