@@ -4,7 +4,7 @@
 // This file was written for the SawconOS Host Tools
 //
 // Written: Sunday 14th May 2023
-// Last Updated: Thursday 18th May 2023
+// Last Updated: Sunday 21st May 2023
 // 
 // Written by Gabriel Jickells
 
@@ -14,13 +14,15 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define SCIM_VERSION "0.0.04"
+#define SCIM_VERSION "0.0.05"
+#define CLUSTER_ENDCHAIN 0xff8
 
 char *HelpPage[] = {
     "-h / --help : Displays information about how to use the tool",
     "-m / --mode : Sets the mode of the tool",
     "-d / --disk : Selects the disk image to manipulate",
-    "-i / --input : Selects the Input File",
+    "-i / --input : Selects the input file",
+    "-o / --output : Selects the output file",
     NULL
 };
 
@@ -80,3 +82,6 @@ BootRecord_t *ReadBootRecord(FILE* Disk);
 bool ReadSectors(FILE *Disk, BootRecord_t *p_BootRecord, uint32_t LBA, uint32_t Count, void *BufferOut);
 DirectoryEntry_t *ReadRootDirectory(FILE *Disk, BootRecord_t *p_BootRecord, uint32_t *DataSectionOut);
 DirectoryEntry_t *FindFile(BootRecord_t *p_BootRecord, DirectoryEntry_t *Directory, char *Name);
+bool ReadEntry(FILE *Disk, DirectoryEntry_t *p_Entry, BootRecord_t *p_BootRecord, uint8_t *p_FAT, uint32_t DataSectionLBA, void *BufferOut);
+uint8_t *ReadFAT(FILE *Disk, BootRecord_t *p_BootRecord);
+uint32_t Cluster2LBA(uint32_t Cluster, uint32_t DataSectionLBA, BootRecord_t *p_BootRecord);
