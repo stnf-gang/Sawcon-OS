@@ -30,12 +30,14 @@ char *ModePage[] = {
     NULL,
     "read",
     "list",
+    "write",
     NULL
 };
 
 enum ModeDefs {
     M_READ = 1,
     M_LIST = 2,
+    M_WRITE = 3,
 };
 
 typedef struct BootRecord_t {

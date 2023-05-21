@@ -2,7 +2,7 @@
 
 ### Written: Sunday 14th May 2023
 
-### Last Updated: Thursday 18th May 2023
+### Last Updated: Sunday 21st May 2023
 
 <br>
 
@@ -39,3 +39,6 @@ In list mode, the tool will find all of the files on the disk and print them ont
 * E000b - Could Not Open Input File
 * E000c - Could Not Read FAT Of Disk Image
 * E000d - Output File Not Specified
+* E000e - Could Not Open Output File
+* E000f - Output File Already Exists
+* E0010 - Root Directory Is Full

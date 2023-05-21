@@ -64,9 +64,26 @@ int main(int argc, char **argv) {
         fprintf(stderr, "SCIM: Error E0006 - Disk Image Not Specified\n");
         return -6;
     }
-    FILE *DiskStream; BootRecord_t *d_BootRecord; DirectoryEntry_t *d_RootDirectory;
+    FILE *DiskStreamR; BootRecord_t *d_BootRecord; DirectoryEntry_t *d_RootDirectory;
     DirectoryEntry_t *fs_Entry; uint8_t *fs_Buffer = NULL; uint8_t *d_FAT;
-    uint32_t d_DataSectionLBA; FILE *OutputStream;
+    uint32_t d_DataSectionLBA; FILE *OutputStream; FILE *DiskStreamW; uint16_t fsr_Index;
+    DiskStreamR = fopen(DiskName, "rb");
+    if(DiskStreamR == NULL) {
+        fprintf(stderr, "SCIM: Error E0005 - Could Not Open Disk Image \"%s\"\n", DiskName);
+        return -5;
+    }
+    d_BootRecord = ReadBootRecord(DiskStreamR);
+    if(d_BootRecord == NULL) {
+        fprintf(stderr, "SCIM: Error E0007 - Could Not Read Boot Sector Of Disk Image\n");
+        return -7;
+    }
+    d_RootDirectory = ReadRootDirectory(DiskStreamR, d_BootRecord, &d_DataSectionLBA);
+    if(d_RootDirectory == NULL) {
+        fprintf(stderr, "SCIM: Error E0008 - Could Not Read Root Directory Of Disk Image\n");
+        free(d_BootRecord);
+        fclose(DiskStreamR);
+        return -8;
+    }
     switch(mode) {
         case M_READ:
             if(File_IN == NULL) {
@@ -77,98 +94,92 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "SCIM: Error E000d - Output File Not Specified\n");
                 return -13;
             }
-            DiskStream = fopen(DiskName, "rb");
-            if(DiskStream == NULL) {
-                fprintf(stderr, "SCIM: Error E0005 - Could Not Open Disk Image \"%s\"\n", DiskName);
-                return -5;
-            }
             OutputStream = fopen(File_OUT, "wb");
             if(OutputStream == NULL) {
                 fprintf(stderr, "SCIM: Error E000e - Could Not Open Output File\n");
-                fclose(DiskStream);
+                fclose(DiskStreamR);
                 return -14;
-            }
-            d_BootRecord = ReadBootRecord(DiskStream);
-            if(d_BootRecord == NULL) {
-                fprintf(stderr, "SCIM: Error E0007 - Could Not Read Boot Sector Of Disk Image\n");
-                free(d_BootRecord);
-                fclose(DiskStream);
-                fclose(OutputStream);
-                return -7;
-            }
-            d_RootDirectory = ReadRootDirectory(DiskStream, d_BootRecord, &d_DataSectionLBA);
-            if(d_RootDirectory == NULL) {
-                fprintf(stderr, "SCIM: Error E0008 - Could Not Read Root Directory Of Disk Image\n");
-                free(d_BootRecord);
-                free(d_RootDirectory);
-                fclose(DiskStream);
-                fclose(OutputStream);
-                return -8;
             }
             fs_Entry = FindFile(d_BootRecord, d_RootDirectory, File_IN);
             if(fs_Entry == NULL) {
                 fprintf(stderr, "SCIM: Error E000a - Could Not Find Input File\n");
                 free(d_BootRecord);
-                fclose(DiskStream);
+                fclose(DiskStreamR);
                 fclose(OutputStream);
                 return -10;
             }
-            d_FAT = ReadFAT(DiskStream, d_BootRecord);
+            d_FAT = ReadFAT(DiskStreamR, d_BootRecord);
             if(d_FAT == NULL) {
                 fprintf(stderr, "SCIM: Error E000c - Could Not Read FAT Of Disk Image\n");
                 free(d_BootRecord);
                 free(d_RootDirectory);
-                fclose(DiskStream);
+                fclose(DiskStreamR);
                 fclose(OutputStream);
                 return -12;
             }
             fs_Buffer = (uint8_t *)malloc(fs_Entry->Size + (d_BootRecord->BytesPerSector * d_BootRecord->SectorsPerCluster));
-            if(!ReadEntry(DiskStream, fs_Entry, d_BootRecord, d_FAT, d_DataSectionLBA, fs_Buffer)) {
+            if(!ReadEntry(DiskStreamR, fs_Entry, d_BootRecord, d_FAT, d_DataSectionLBA, fs_Buffer)) {
                 fprintf(stderr, "SCIM: Error E000b - Could Not Open Input File");
                 free(d_BootRecord);
                 free(d_RootDirectory);
                 free(fs_Buffer);
                 free(d_FAT);
-                fclose(DiskStream);
+                fclose(DiskStreamR);
                 fclose(OutputStream);
                 return -11;
             }
             fprintf(OutputStream, "%s", fs_Buffer);
-            free(d_BootRecord);
-            free(d_RootDirectory);
             free(fs_Buffer);
             free(d_FAT);
-            fclose(DiskStream);
             fclose(OutputStream);
             break;
         case M_LIST:
-            DiskStream = fopen(DiskName, "rb");
-            if(DiskStream == NULL) {
-                fprintf(stderr, "SCIM: Error E0005 - Could Not Open Disk Image \"%s\"\n", DiskName);
-                return -5;
-            }
-            d_BootRecord = ReadBootRecord(DiskStream);
-            if(d_BootRecord == NULL) {
-                fprintf(stderr, "SCIM: Error E0007 - Could Not Read Boot Sector Of Disk Image\n");
-                free(d_BootRecord);
-                return -7;
-            }
-            d_RootDirectory = ReadRootDirectory(DiskStream, d_BootRecord, NULL);
-            if(d_RootDirectory == NULL) {
-                fprintf(stderr, "SCIM: Error E0008 - Could Not Read Root Directory Of Disk Image\n");
-                free(d_BootRecord);
-                free(d_RootDirectory);
-                return -8;
-            }
             printf("NAME\n");
             for(int i = 0; i < d_BootRecord->RootDirectoryEntries; i++) {
                 if(d_RootDirectory[i].Name[0] == 0) break;
                 printf("\"%.11s\"\n", d_RootDirectory[i].Name);
             }
-            free(d_BootRecord);
-            free(d_RootDirectory);
+            break;
+        case M_WRITE:
+            if(File_IN == NULL) {
+                fprintf(stderr, "SCIM: Error E0009 - Input File Not Specified\n");
+                return -9;
+            }
+            if(File_OUT == NULL) {
+                fprintf(stderr, "SCIM: Error E000d - Output File Not Specified\n");
+                return -13;
+            }
+            DiskStreamW = fopen(DiskName, "wb");
+            if(DiskStreamW == NULL) {
+                fprintf(stderr, "SCIM: Error E0005 - Could Not Open Disk Image\n");
+                free(d_BootRecord);
+                free(d_RootDirectory);
+                fclose(DiskStreamR);
+                return -5;
+            }
+            if(FindFile(d_BootRecord, d_RootDirectory, File_OUT)) {
+                fprintf(stderr, "SCIM: Error E000f - Output File Already Exists\n");
+                free(d_BootRecord);
+                free(d_RootDirectory);
+                fclose(DiskStreamR);
+                fclose(DiskStreamW);
+                return -15;
+            }
+            for(fsr_Index = 0; fsr_Index < d_BootRecord->RootDirectoryEntries; fsr_Index++) {
+                if(d_RootDirectory[fsr_Index].Name[0] == 0) {
+                    fs_Entry = &d_RootDirectory[fsr_Index];
+                    break;
+                }
+            }
+            if(fs_Entry == NULL) {
+                fprintf(stderr, "SCIM: Error E0010 - Root Directory Is Full\n");
+                return -16;
+            }
             break;
     }
+    free(d_BootRecord);
+    free(d_RootDirectory);
+    fclose(DiskStreamR);
     return 0;
 }
 
@@ -217,8 +228,8 @@ bool ReadEntry(FILE *Disk, DirectoryEntry_t *p_Entry, BootRecord_t *p_BootRecord
         BufferOut += p_BootRecord->SectorsPerCluster * p_BootRecord->BytesPerSector;
         FatIndex = CurrentCluster * 3 / 2;          // convert uint8_t index into a uint12_t index: 8 * 3 / 2 = 12
         // C doesn't support uint12_t arrays so the function will read from a uint16_t array instead and convert the value
-        if(FatIndex & 1) CurrentCluster = *(uint16_t *)(p_FAT + FatIndex) & 0xfff;
-        else CurrentCluster = *(uint16_t *)(p_FAT + FatIndex) >> 4;
+        if(CurrentCluster & 1) CurrentCluster = *(uint16_t *)(p_FAT + FatIndex) >> 4;
+        else CurrentCluster = *(uint16_t *)(p_FAT + FatIndex) & 0xfff;
     }
     return true;
 }
