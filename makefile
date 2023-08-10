@@ -16,9 +16,10 @@ TMP=$(BIN)/tmp
 SRC=src
 BOOTLOADER_SRC=$(SRC)/bootloader
 
-# ===Compilers===
+# ===Compilers & Tools===
 TARGET_ASM=as
 TARGET_LD=ld
+EMULATOR=qemu-system-i386
 
 # ===Compiler Flags===
 BOOTSECT_LDFLAGS=-Ttext 0x7c00 -e 0x7c00 --oformat binary
@@ -30,3 +31,6 @@ bootloader: dirs
 dirs:
 	mkdir -p $(BIN)
 	mkdir -p $(TMP)
+
+run:
+	$(EMULATOR) -drive if=floppy,format=raw,file=$(BIN)/SawconOS-Bootloader-boot_sector.bin
