@@ -4,7 +4,7 @@
 # This file was written for the SawconOS Host Tools
 #
 # Written: Monday 7th August 2023
-# Last Updated: Monday 7th August 2023
+# Last Updated: Friday 11th August 2023
 # 
 # Written by Gabriel Jickells
 
@@ -24,6 +24,15 @@ EMULATOR=qemu-system-i386
 # ===Compiler Flags===
 BOOTSECT_LDFLAGS=-Ttext 0x7c00 -e 0x7c00 --oformat binary
 
+# ===Disk Image Information===
+VERSION=BIOS_READ_TEST
+DISK_NAME=SawconOS-Full-$(VERSION).img
+SECT_COUNT=2880
+
+disk: dirs bootloader
+	dd if=/dev/zero of=$(BIN)/$(DISK_NAME) bs=512 count=$(SECT_COUNT)
+	dd if=$(BIN)/SawconOS-Bootloader-boot_sector.bin of=$(BIN)/$(DISK_NAME) conv=notrunc
+
 bootloader: dirs
 	$(TARGET_ASM) $(BOOTLOADER_SRC)/boot.s -o $(TMP)/bootsect.o
 	$(TARGET_LD) $(BOOTSECT_LDFLAGS) $(TMP)/bootsect.o -o $(BIN)/SawconOS-Bootloader-boot_sector.bin
@@ -33,4 +42,4 @@ dirs:
 	mkdir -p $(TMP)
 
 run:
-	$(EMULATOR) -drive if=floppy,format=raw,file=$(BIN)/SawconOS-Bootloader-boot_sector.bin
+	$(EMULATOR) -drive if=floppy,format=raw,file=$(BIN)/$(DISK_NAME)
