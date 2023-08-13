@@ -1,5 +1,15 @@
 # Changelog
 
+## SCIM - Alpha 1.0 (Saturday 12th August 2023 - Sunday 13th August 2023)
+### Changes
+#### Saturday 12th August 2023
+- the build system is now set up to compile SCIM
+#### Sunday 13th August 2023
+- added functions and data structures to parse the boot record of FAT12 formatted disks
+- added data structures to parse the root directory of FAT12 formatted disks
+### Issues
+none found in testing
+
 ## SawconOS Bootloader - BIOS disk read test (Friday 11th August 2023)
 
 ### Changes
@@ -21,5 +31,8 @@
 
 ## SawconOS Bootloader - BIOS boot test (Monday 7th August 2023)
 
+### Changes
 - the SawconOS bootloader can now be loaded using BIOS
 - it will immediately halt the CPU upon being loaded
+### Issues
+none found in testing
