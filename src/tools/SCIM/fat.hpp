@@ -4,11 +4,15 @@
 // This file was written as part of the Sawcon Image Manipulator
 //
 // Written: Sunday 13th August 2023
-// Last Updated: Sunday 13th August 2023
+// Last Updated: Tuesday 15th August 2023
 //
 // Written by Gabriel Jickells
 
 #pragma once
+
+// if you are using this header as a standalone file for your own projects, replace this include with the following headers or include them in your projects main header file
+// #include <stdio.h>
+// #include <string.h>
 #include "scim.hpp"
 
 namespace FAT {
@@ -83,14 +87,68 @@ namespace FAT12 {
         public:
 
             BootRecord_t FS_Info;
-            FAT::DirectoryEntry_t *RootDirectory;
+            FAT::DirectoryEntry_t *RootDirectory = NULL;
 
-            // read the disk image information from its boot record into Data
+            /// @brief read the FAT header data from the boot sector of a disk image into FS_Info
+            /// @param Image disk image to read from
+            /// @return true on success, false on failure
             bool ReadBootRecord(FILE *Image) {
-                if(fseek(Image, FAT::BPB_OFFSET, SEEK_SET) == -1) return false;
-                if(fread(&FS_Info.BPB, sizeof(FAT::BiosParameterBlock_t), 1, Image) <= 0) return false;
-                if(fseek(Image, FAT::EBPB_OFFSET, SEEK_SET) == -1) return false;
-                if(fread(&FS_Info.EBPB, sizeof(ExtendedBiosParameterBlock_t), 1, Image) <= 0) return false;
+
+                // navigate to where the FAT header is expected to be
+                if(fseek(Image, FAT::BPB_OFFSET, SEEK_SET) < 0) 
+                    return false;
+                
+                // because the BootRecord_t structure doesn't have any padding, it is possible to read the entire structures data all at once and all the values will still be in the right place
+                if(fread(&FS_Info, sizeof(BootRecord_t), 1, Image) <= 0) 
+                    return false;
+
+                return true;
+            }
+
+            /// @brief read the file meta-data in the root directory of a disk image into RootDirectory. Requires FS_Info to have valid values in it
+            /// @param Image disk image to read from
+            /// @return true on success, false on failure
+            bool ReadRootDirectory(FILE *Image) {
+                
+                // calculate the LBA of the root directory
+                // the root directory is located directly after the FAT region of the disk, which is located after the reserved sectors at the start of the disk
+                FAT::word RootDirectoryLBA = FS_Info.BPB.ReservedSectors + (FS_Info.BPB.TotalFATs * FS_Info.BPB.SectorsPerFAT);
+
+                // calculate the size of the root directory in sectors
+                unsigned int RootDirectoryBytes = sizeof(FAT::DirectoryEntry_t) * FS_Info.BPB.RootDirectoryEntries;
+                // division operations always round down with integers so when a division needs to be rounded up, which it does in this case to make sure we read the whole thing, we can add the divisor - 1 to the dividend
+                FAT::word RootDirectorySectors = (RootDirectoryBytes + (FS_Info.BPB.BytesPerSector - 1)) / FS_Info.BPB.BytesPerSector;
+
+                // make space to store the root directory data when it is read
+                // we shouldn't use RootDirectoryBytes here because if RootDirectorySectors is rounded to the next sector then RootDirectoryBytes will be inaccurate
+                RootDirectory = (FAT::DirectoryEntry_t *)malloc(RootDirectorySectors * FS_Info.BPB.BytesPerSector);
+
+                // read the data
+                if(!ReadSectors(Image, RootDirectoryLBA, RootDirectorySectors, RootDirectory))
+                    return false;
+
+                return true;
+
+            }
+
+            FAT::DirectoryEntry_t *FindFile(const char *Name) {
+                for(int i = 0; i < FS_Info.BPB.RootDirectoryEntries; i++)
+                    if(!memcmp(Name, RootDirectory[i].Name, 11))
+                        return &RootDirectory[i];
+                return NULL;
+            }
+
+        private:
+
+            /// @brief read some sectors from a disk image. requires FS_Info to have valid values in it
+            /// @param Image disk image to read from
+            /// @param LBA which sector to start reading from
+            /// @param Count how many sectors to read
+            /// @param BufferOut where the data will be stored
+            /// @return true on success, false on error
+            bool ReadSectors(FILE *Image, FAT::word LBA, FAT::word Count, void *BufferOut) {
+                if(fseek(Image, LBA * FS_Info.BPB.BytesPerSector, SEEK_SET) < 0) return false;
+                if(fread(BufferOut, FS_Info.BPB.BytesPerSector, Count, Image) != Count) return false;
                 return true;
             }
 

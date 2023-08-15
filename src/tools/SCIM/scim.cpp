@@ -5,7 +5,7 @@
 // compiled using g++
 // 
 // Written: Saturday 12th August 2023
-// Last Updated: Sunday 13th August 2023
+// Last Updated: Tuesday 15th August 2023
 // 
 // Written by Gabriel Jickells
 
@@ -13,17 +13,34 @@
 
 int main(int argc, char **argv) {
     char *DiskImageName = NULL; bool DiskImageNameSpecified = false;
-    
+    char *AffectedFileEntryName = NULL;
+
     // parse any arguments that were passed to the tool
     for(int i = 1; i < argc; i++) {
-        if(!DiskImageNameSpecified) {
-            DiskImageNameSpecified = true;
-            DiskImageName = argv[i];
+        if(!strcmp("-f", argv[i])) {
+            // make sure this isn't the last argument
+            if(i + 1 == argc) {
+                std::cerr << "SCIM: Error - invalid argument usage\n";
+                return -6;
+            }
+            AffectedFileEntryName = argv[++i];
         }
         else {
-            std::cerr << "SCIM: Error - Disk image name was specified too many times\n";
-            return -1;
+            if(!DiskImageNameSpecified) {
+                DiskImageNameSpecified = true;
+                DiskImageName = argv[i];
+            }
+            else {
+                std::cerr << "SCIM: Error - Disk image name was specified too many times\n";
+                return -1;
+            }
         }
+    }
+
+    // make sure that a disk image name was specified
+    if(!DiskImageName) {
+        std::cerr << "SCIM: Error - Disk image was not specified\n";
+        return -4;
     }
 
     // open the disk image in read mode so FAT information can be read from it
@@ -39,10 +56,20 @@ int main(int argc, char **argv) {
         return -3;
     }
 
+    if(!FAT_Data.ReadRootDirectory(DiskImageReadStream)) {
+        std::cerr << "SCIM: Error - Could not read root directory of disk image\n";
+        return -5;
+    }
+
+    scim::FAT::DirectoryEntry_t *AffectedFileEntryData = FAT_Data.FindFile(AffectedFileEntryName);
+    if(!AffectedFileEntryData) {
+        std::cerr << "SCIM: Error - Could not find the file on the disk image\n";
+        return -7;
+    }
+
     // TESTING
 
-    printf("Disk Image OEM Identifier: \"%.8s\"\n", FAT_Data.FS_Info.BPB.OEM_Identifier);
-    printf("Disk Signature: 0x%hhx\n", FAT_Data.FS_Info.EBPB.Signature);
+    printf("0x%x\n", AffectedFileEntryData->Attributes);
 
     // END OF TESTING
 
