@@ -5,7 +5,7 @@
 // compiled using g++
 // 
 // Written: Saturday 12th August 2023
-// Last Updated: Tuesday 15th August 2023
+// Last Updated: Wednesday 16th August 2023
 // 
 // Written by Gabriel Jickells
 
@@ -67,9 +67,20 @@ int main(int argc, char **argv) {
         return -7;
     }
 
+    if(!FAT_Data.ReadFAT(DiskImageReadStream)) {
+        std::cerr << "SCIM: Error - Could not read the file allocation of the disk image\n";
+        return -8;
+    }
+
+    scim::FAT::byte *FileBuffer = (scim::FAT::byte *)malloc((AffectedFileEntryData->Size + 1024));
+    if(!FAT_Data.ReadFile(DiskImageReadStream, AffectedFileEntryData, FileBuffer)) {
+        std::cerr << "SCIM: Error - Could not read the file from the disk\n";
+        return -9;
+    }
+
     // TESTING
 
-    printf("0x%x\n", AffectedFileEntryData->Attributes);
+    printf("%s\n", FileBuffer);
 
     // END OF TESTING
 

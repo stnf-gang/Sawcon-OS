@@ -4,7 +4,7 @@
 // This file was written as part of the Sawcon Image Manipulator
 //
 // Written: Sunday 13th August 2023
-// Last Updated: Tuesday 15th August 2023
+// Last Updated: Wednesday 16th August 2023
 //
 // Written by Gabriel Jickells
 
@@ -88,6 +88,7 @@ namespace FAT12 {
 
             BootRecord_t FS_Info;
             FAT::DirectoryEntry_t *RootDirectory = NULL;
+            FAT::byte *FileAllocationTable = NULL;
 
             /// @brief read the FAT header data from the boot sector of a disk image into FS_Info
             /// @param Image disk image to read from
@@ -122,23 +123,68 @@ namespace FAT12 {
                 // make space to store the root directory data when it is read
                 // we shouldn't use RootDirectoryBytes here because if RootDirectorySectors is rounded to the next sector then RootDirectoryBytes will be inaccurate
                 RootDirectory = (FAT::DirectoryEntry_t *)malloc(RootDirectorySectors * FS_Info.BPB.BytesPerSector);
+                if(!RootDirectory) return false;
 
                 // read the data
                 if(!ReadSectors(Image, RootDirectoryLBA, RootDirectorySectors, RootDirectory))
                     return false;
 
+                DataSectionLBA = RootDirectoryLBA + RootDirectorySectors;
+
                 return true;
 
             }
 
+            /// @brief Finds the meta data for a file entry in the root directory. Requires the root directory to have been read
+            /// @param Name name of the file entry in "NAME    EXT" format
+            /// @return pointer to the file entry data on success, NULL on failure
             FAT::DirectoryEntry_t *FindFile(const char *Name) {
+                if(!RootDirectory) return NULL;
                 for(int i = 0; i < FS_Info.BPB.RootDirectoryEntries; i++)
                     if(!memcmp(Name, RootDirectory[i].Name, 11))
                         return &RootDirectory[i];
                 return NULL;
             }
+ 
+            /// @brief Reads the entirety of a file on a disk image. Requires FS_Info, RootDirectory, and FileAllocationTable to all have valid values in them
+            /// @param FileEntry File meta-data to get the files location on the disk
+            /// @param BufferOut Buffer to store the data in, should be malloced before calling the function
+            /// @return true on success, false on failure
+            bool ReadFile(FILE *Image, FAT::DirectoryEntry_t *FileEntry, void *BufferOut) {
+                FAT::byte *ByteBufferOut = (FAT::byte *)BufferOut;
+                if(!FileAllocationTable) return false;
+                FAT::word CurrentCluster = FileEntry->FirstClusterLow & 0xFFF;
+                FAT::word CurrentLBA; FAT::word FAT_Index;
+                while(CurrentCluster < LAST_CLUSTER) {
+                    if(CurrentCluster == BAD_CLUSTER || CurrentCluster < FIRST_AVAILABLE_CLUSTER) return false;
+                    CurrentLBA = Cluster2LBA(CurrentCluster);
+                    if(!CurrentLBA) return false;
+                    if(!ReadSectors(Image, CurrentLBA, FS_Info.BPB.SectorsPerCluster, ByteBufferOut))
+                        return false;
+                    ByteBufferOut += FS_Info.BPB.BytesPerSector * FS_Info.BPB.SectorsPerCluster;
+                    
+                    // calculate the next cluster in the chain
+                    FAT_Index = CurrentCluster * 3 / 2; // CurrentCluster is used as the index for the next cluster number, but CurrentCluster is a byte index but needs to be converted into a uint12 index
+                    // computers don't natively support uint12 arrays so some bit fiddling is required to get the right value
+                    if(CurrentCluster & 1) CurrentCluster = *(uint16_t *)(FileAllocationTable + FAT_Index) >> 4;
+                    else CurrentCluster = *(uint16_t *)(FileAllocationTable + FAT_Index) & 0xFFF;
+                }
+                return true;
+            }
+
+            /// @brief Reads the first file allocation table of a disk image into FileAllocationTable
+            /// @param Image disk image to read from
+            /// @return true on sucess, false on failure
+            bool ReadFAT(FILE *Image) {
+                FileAllocationTable = (FAT::byte *)malloc(FS_Info.BPB.SectorsPerFAT * FS_Info.BPB.BytesPerSector);
+                if(!FileAllocationTable) return false;
+                if(!ReadSectors(Image, FS_Info.BPB.ReservedSectors, FS_Info.BPB.SectorsPerFAT, FileAllocationTable)) return false;
+                return true;
+            }
 
         private:
+
+            FAT::word DataSectionLBA = 0;
 
             /// @brief read some sectors from a disk image. requires FS_Info to have valid values in it
             /// @param Image disk image to read from
@@ -150,6 +196,15 @@ namespace FAT12 {
                 if(fseek(Image, LBA * FS_Info.BPB.BytesPerSector, SEEK_SET) < 0) return false;
                 if(fread(BufferOut, FS_Info.BPB.BytesPerSector, Count, Image) != Count) return false;
                 return true;
+            }
+
+            /// @brief convert a cluster number to its LBA location. Requires DataSectionLBA to have been set by ReadRootDirectory
+            /// @param Cluster FAT cluster number
+            /// @return LBA number on success, 0 on failure
+            FAT::word Cluster2LBA(FAT::word Cluster) {
+                if(Cluster < FIRST_AVAILABLE_CLUSTER || 
+                   !DataSectionLBA) return 0;
+                return DataSectionLBA + (Cluster - FIRST_AVAILABLE_CLUSTER) * FS_Info.BPB.SectorsPerCluster;
             }
 
     };

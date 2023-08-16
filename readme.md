@@ -1,14 +1,31 @@
 # Changelog
 
+## SCIM - Alpha 1.2 (Wednesday 16th August)
+
+### Changes
+- added scim::FAT12::Disk.ReadFile() for reading the data of a file from its meta-data
+- added scim::FAT12::Disk.Cluster2LBA() for converting clusters to LBA values when they need to be read
+- scim::FAT12::Disk.ReadRootDirectory() now fills the value in DataSectionLBA and as so must be called before any functions that need them such as ReadFile or Cluster2LBA
+- SCIM now reads a file, specified by -f, from a disk image and prints its contents to the screen
+
+### Issues
+#### new
+- SCIM isn't memory safe
+#### from previous versions
+- There is no check to make sure the values in the FAT header are valid which can lead to unexpected behavious in functions that require them
+
+### Fixes
+- scim::FAT12::Disk.FindFile() now checks that the root directory has been read
+
 ## SCIM - Alpha 1.1 (Tuesday 15th August 2023)
 
 ### Changes
 - added functions for reading the root directory of FAT12 formatted disks
-- added SCIM::FAT12::Disk.FindFile() for locating file metadata in the root directory of FAT12 formatted disks
+- added scim::FAT12::Disk.FindFile() for locating file metadata in the root directory of FAT12 formatted disks
 
 ### Issues
 #### new
-none found in testing
+- scim::FAT12::Disk.FindFile() has no check to make sure the root directory has been read
 #### from previous versions
 - There is no check to make sure the values in the FAT header are valid which can lead to unexpected behaviors in functions that require them
 
