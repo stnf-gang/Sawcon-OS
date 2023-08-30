@@ -1,5 +1,25 @@
 # Changelog
 
+## SCIM - Alpha 1.3 (Sunday 27th August - Wednesday 30th August)
+
+### Changes
+#### 27th August 2023
+- rewrote scim.cpp from scratch
+- added support for different operating modes inside of SCIM
+- added -i/--image switch for specifying the disk image to work with
+#### 30th August 2023
+- renamed scim::FAT12::Disk.FindFile() to scim::FAT12::Disk.FindEntry()
+- renamed scim::FAT12::Disk.ReadFile() to scim::FAT12::Disk.ReadEntry()
+- added list mode which outputs a list of all entries present in the root directory
+- added -e/--entry for specifying the target entry to work with
+- added read mode which prints the contents of a file entry to stdout
+
+### Issues
+#### new
+none found
+#### from previous versions
+- There is no check to make sure the values in the FAT header are valid which can lead to unexpected behavious in functions that require them
+
 ## SCIM - Alpha 1.2 (Wednesday 16th August)
 
 ### Changes
@@ -74,4 +94,4 @@
 - it will immediately halt the CPU upon being loaded
 
 ### Issues
-none found in testing
+none found
