@@ -16,6 +16,8 @@ enum Indexes {
 const char *ValidModes[] {
     "list",
     "read",
+    "delete",
+    "write",
     NULL                        // end of list
 };
 
@@ -23,4 +25,6 @@ enum MODES {
     M_INVALID = 0,
     M_LIST,
     M_READ,
+    M_DELETE,
+    M_WRITE,
 };

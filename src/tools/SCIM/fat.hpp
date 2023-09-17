@@ -5,7 +5,7 @@
 // This version of the header was written for SCIM Alpha 1.3
 //
 // Written: Sunday 13th August 2023
-// Last Updated: Wednesday 30th August 2023
+// Last Updated: Sunday 17th September 2023
 //
 // Written by Gabriel Jickells
 
@@ -17,6 +17,7 @@
 /*
 #include <stdio.h>
 #include <string.h>
+#includr <ctime>
 
 namespace scim {
     using byte = unsigned char;
@@ -55,7 +56,7 @@ namespace FAT {
         scim::byte Attributes;
         scim::byte _reserved;                           // reserved for use in windows NT
         scim::byte CreationTimeCents;                   // adds hundreths of a second to the creation time. should only be able to go up to 199. This adds precision to the creation time which can only count seconds in multiples of 2
-        scim::word CreationDate;                        // CreationDate = (year << 9) | (Month << 5) | (Day)
+        scim::word CreationDate;                        // CreationDate = ((year - 1980) << 9) | (Month << 5) | (Day)
         scim::word AccessedDate;                        // date of the last time that the file was opened
         scim::word CreationTime;                        // CreationTime = (Hour << 11) | (minute << 5) | (Seconds >> 1)
         scim::word FirstClusterHigh;                    // upper 16 bits of the first cluster number. Not used in FAT12 and 16
@@ -64,6 +65,33 @@ namespace FAT {
         scim::word FirstClusterLow;                     // lower 16 bits of the first cluster number
         scim::dword Size;                               // measured in bytes
     } __attribute__((packed)) DirectoryEntry_t;
+
+    // the first character of a directory entry's name can have some special functions
+    enum NAME_SPECIAL {
+        I_SPECIALCHAR = (char)0,                        // index into the name where the special character is located
+        N_END = (char)0x00,                             // directories are NULL terminated
+        N_SIGMALOW = (char)0x05,                        // ASCII code 0xe5 is a FAT special character so 0x05 is used to specify lowercase sigma which is the symbol for ASCII code 0xe5
+        N_ENTRYFREE = (char)0xe5,                       // usually means there was a file entry here but it was deleted
+    };
+
+    enum FILE_ATTRIBUTES {
+        A_READ_ONLY =   0b00000001,                     // means the entry cannot be written to
+        A_HIDDEN =      0b00000010,                     // means the entry exists but is not meant to be visible
+        A_SYSTEM =      0b00000100,                     // means the entry is used by an operating system to function
+        A_VOLUME_NAME = 0b00001000,                     // means the entry specifies the name of the disk
+        A_DIRECTORY =   0b00010000,                     // means the entry is a sub-directory
+        A_ARCHIVE =     0b00100000,                     // means the entry is a file
+    };
+
+    scim::word localtime2FatTime(tm *LocalTime) {
+        return (LocalTime->tm_hour << 11) | (LocalTime->tm_min << 5) | (LocalTime->tm_sec >> 1);
+    }
+
+    scim::word localtime2FatDate(tm *LocalTime) {
+        // tm_year starts at 1900 but FAT year starts at 1980
+        // tm_mon starts at 0 but FAT month starts at 1
+        return ((LocalTime->tm_year - 80) << 9) | ((LocalTime->tm_mon + 1) << 5) | (LocalTime->tm_mday);
+    }
 
 }                           // contains FAT information standard for FAT12/16/32. Shouldn't be used for exFAT or vFAT
 
@@ -116,6 +144,12 @@ namespace FAT12 {
 
             }
 
+            /// @brief free any memory that was allocated by Disk functions
+            void Clean() {
+                free(RootDirectory);
+                free(FileAllocationTable);
+            }
+
             /// @brief Finds the meta data for a file entry in the root directory. Requires the root directory to have been read
             /// @param Name name of the file entry in "NAME    EXT" format
             /// @return pointer to the file entry data on success, NULL on failure
@@ -128,6 +162,7 @@ namespace FAT12 {
             }
  
             /// @brief Reads the entirety of a file on a disk image. Requires FS_Info, RootDirectory, and FileAllocationTable to all have valid values in them
+            /// @param Image disk image to read from
             /// @param FileEntry File meta-data to get the files location on the disk
             /// @param BufferOut Buffer to store the data in, should be malloced before calling the function
             /// @return true on success, false on failure
@@ -147,10 +182,134 @@ namespace FAT12 {
                     // calculate the next cluster in the chain
                     FAT_Index = CurrentCluster * 3 / 2; // CurrentCluster is used as the index for the next cluster number, but CurrentCluster is a byte index but needs to be converted into a uint12 index
                     // computers don't natively support uint12 arrays so some bit fiddling is required to get the right value
-                    if(CurrentCluster & 1) CurrentCluster = *(uint16_t *)(FileAllocationTable + FAT_Index) >> 4;
-                    else CurrentCluster = *(uint16_t *)(FileAllocationTable + FAT_Index) & 0xFFF;
+                    if(CurrentCluster & 1) CurrentCluster = *(scim::word *)(FileAllocationTable + FAT_Index) >> 4;
+                    else CurrentCluster = *(scim::word *)(FileAllocationTable + FAT_Index) & 0xFFF;
                 }
                 return true;
+            }
+
+            /// @brief Deletes a file entry on the disk
+            /// @param Image disk image to rid of the file
+            /// @return true on success, false on failure
+            bool DeleteEntry(FILE *Image, FAT::DirectoryEntry_t *FileEntry) {
+                scim::word CurrentCluster = FileEntry->FirstClusterLow & 0xFFF;
+                scim::word FAT_Index;
+                do {
+                    if(CurrentCluster < FIRST_AVAILABLE_CLUSTER) return false;
+                    // same kind of uint12_t messing from ReadEntry
+                    FAT_Index = CurrentCluster * 3 / 2;
+                    if(CurrentCluster & 1) {
+                        CurrentCluster = *(scim::word *)(FileAllocationTable + FAT_Index) >> 4;
+                        *(scim::word *)(FileAllocationTable + FAT_Index) &= 0x000F;         // the upper 12 bits are used for the cluster number here, leave the low 4 untouched
+                    }
+                    else {
+                        CurrentCluster = *(scim::word *)(FileAllocationTable + FAT_Index) & 0xFFF;
+                        *(scim::word *)(FileAllocationTable + FAT_Index) &= 0xF000;         // the lower 12 bits are used for the cluster number here, leave the top 4 untouched
+                    }
+                } while(CurrentCluster < LAST_CLUSTER);
+
+                // find the entry again to get a reference to its location in the root directory
+                FAT::DirectoryEntry_t *EntryReference = FindEntry(FileEntry->Name);
+                if(!EntryReference) return false;
+
+                // set the special character in the name to mark it as deleted
+                EntryReference->Name[FAT::I_SPECIALCHAR] = FAT::N_ENTRYFREE;
+                EntryReference->FirstClusterLow = 0;
+
+                // write the updated entry data and FAT to the disk image
+                if(!WriteEntryData(Image, EntryReference, (EntryReference - RootDirectory) / sizeof(FAT::DirectoryEntry_t))) return false;
+                if(!WriteFAT(Image)) return false;
+
+                return true;
+            }
+
+            bool CreateEntry(FILE *Image, const char *Name, scim::byte Attributes, FILE *FileData) {
+                if(strlen(Name) != 11) return false;
+                for(int i = 0; i < FS_Info.BPB.RootDirectoryEntries; i++) {
+                    // prevent duplicate entries
+                    if(!memcmp(Name, RootDirectory[i].Name, 11)) return false;
+                    
+                    if(RootDirectory[i].Name[0] == FAT::N_END || RootDirectory[i].Name[0] == FAT::N_ENTRYFREE) {
+                        // get the current time and date
+                        time_t now = time(0);
+                        tm *NowLocal = localtime(&now);
+
+                        // fill the entry data with valid values
+                        strcpy(RootDirectory[i].Name, Name);
+                        RootDirectory[i].Attributes = Attributes;
+                        RootDirectory[i]._reserved = 0;
+                        if(NowLocal->tm_sec & 1) RootDirectory[i].CreationTimeCents = 100;
+                        else RootDirectory[i].CreationTimeCents = 0;
+                        RootDirectory[i].CreationDate = FAT::localtime2FatDate(NowLocal);
+                        RootDirectory[i].AccessedDate = FAT::localtime2FatDate(NowLocal);
+                        RootDirectory[i].CreationTime = FAT::localtime2FatTime(NowLocal);
+                        RootDirectory[i].FirstClusterHigh = 0;
+                        RootDirectory[i].ModificationTime = FAT::localtime2FatTime(NowLocal);
+                        RootDirectory[i].ModificationDate = FAT::localtime2FatDate(NowLocal);
+                        RootDirectory[i].FirstClusterLow = NextFreeCluster();
+                        
+                        // get the size of the file
+                        if(fseek(FileData, 0, SEEK_END) < 0) return false;
+                        RootDirectory[i].Size = ftell(FileData);
+                        
+                        if(!WriteEntryData(Image, &RootDirectory[i], i)) return false;
+
+                        // calculate how many values need to be added to the FAT
+                        size_t FileClusterCount = RootDirectory[i].Size / (FS_Info.BPB.BytesPerSector * FS_Info.BPB.SectorsPerCluster);
+                        if(RootDirectory[i].Size % (FS_Info.BPB.BytesPerSector * FS_Info.BPB.SectorsPerCluster)) FileClusterCount++;
+
+                        // fill the values in the file allocation table
+                        scim::word FatIndex;
+                        scim::word CurrentCluster = RootDirectory[i].FirstClusterLow;
+                        for(size_t j = 0; j < FileClusterCount; j++) {
+                            FatIndex = CurrentCluster * 3 / 2;
+                            if(j + 1 == FileClusterCount) {
+                                if(CurrentCluster & 1) *(scim::word *)(FileAllocationTable + FatIndex) |= LAST_CLUSTER << 4;
+                                else *(scim::word *)(FileAllocationTable + FatIndex) |= LAST_CLUSTER;
+                                break;
+                            }
+                            if(CurrentCluster & 1) {
+                                // fill the active cluster with a dummy number first so it doesnt get counted as free
+                                *(scim::word *)(FileAllocationTable + FatIndex) |= 0x001 << 4;
+                                CurrentCluster = NextFreeCluster();
+                                // empty the dummy cluster number
+                                *(scim::word *)(FileAllocationTable + FatIndex) &= 0x000f;
+                                *(scim::word *)(FileAllocationTable + FatIndex) |= CurrentCluster << 4;
+                            }
+                            else {
+                                *(scim::word *)(FileAllocationTable + FatIndex) |= 0x001;
+                                CurrentCluster = NextFreeCluster();
+                                *(scim::word *)(FileAllocationTable + FatIndex) &= 0xf000;
+                                *(scim::word *)(FileAllocationTable + FatIndex) |= CurrentCluster;
+                            }
+                        }
+
+                        if(!WriteFAT(Image)) return false;
+
+                        // now the location of the data is known on the disk, all that is left to do is fill all of that data
+                        CurrentCluster = RootDirectory[i].FirstClusterLow;
+                        scim::byte *FileDataBuffer = (scim::byte *)malloc(FS_Info.BPB.BytesPerSector * FS_Info.BPB.SectorsPerCluster);
+                        for(int j = 0; CurrentCluster < LAST_CLUSTER; j++) {
+                            FatIndex = CurrentCluster * 3 / 2;
+
+                            memset(FileDataBuffer, 0, FS_Info.BPB.BytesPerSector * FS_Info.BPB.SectorsPerCluster);
+                            if(fseek(FileData, j * FS_Info.BPB.SectorsPerCluster * FS_Info.BPB.BytesPerSector, SEEK_SET) < 0) return false;
+                            if(!fread(FileDataBuffer, scim::min(FS_Info.BPB.BytesPerSector * FS_Info.BPB.SectorsPerCluster, ftell(FileData) - RootDirectory[i].Size), 1, FileData)) {
+                                if(ferror(FileData)) return false;
+                            }
+                            
+                            if(fseek(Image, Cluster2LBA(CurrentCluster) * FS_Info.BPB.BytesPerSector, SEEK_SET) < 0) return false;
+                            if(!fwrite(FileDataBuffer, FS_Info.BPB.BytesPerSector * FS_Info.BPB.SectorsPerCluster, 1, Image)) return false;
+
+                            if(CurrentCluster & 1) CurrentCluster = *(scim::word *)(FileAllocationTable + FatIndex) >> 4;
+                            else CurrentCluster = *(scim::word *)(FileAllocationTable + FatIndex) & 0xFFF;
+                        }
+
+                        free(FileDataBuffer);
+                        return true;
+                    }
+                }
+                return false;
             }
 
         private:
@@ -231,6 +390,32 @@ namespace FAT12 {
 
                 return true;
 
+            }
+
+            bool WriteEntryData(FILE* Image, FAT::DirectoryEntry_t *Entry, scim::word index) {
+                scim::word RootDirectoryLBA = FS_Info.BPB.ReservedSectors + (FS_Info.BPB.TotalFATs * FS_Info.BPB.SectorsPerFAT);
+                
+                if(fseek(Image, (RootDirectoryLBA * FS_Info.BPB.BytesPerSector) + (index * sizeof(FAT::DirectoryEntry_t)), SEEK_SET) < 0) return false;
+                if(fwrite(Entry, sizeof(FAT::DirectoryEntry_t), 1, Image) <= 0) return false;
+                
+                return true;
+            }
+
+            bool WriteFAT(FILE *Image) {
+                if(fseek(Image, FS_Info.BPB.ReservedSectors * FS_Info.BPB.BytesPerSector, SEEK_SET) < 0) return false;
+                if(fwrite(FileAllocationTable, FS_Info.BPB.BytesPerSector * FS_Info.BPB.SectorsPerFAT, 1, Image) <= 0) return false;
+                return true;
+            }
+
+            /// @brief finds the next cluster in the FAT that isnt being used
+            /// @return the cluster number of the first free cluster
+            scim::word NextFreeCluster() {
+                scim::word FatIndex;
+                for(int i = FIRST_AVAILABLE_CLUSTER;; i++) {
+                    FatIndex = i * 3 / 2;
+                    if((i & 1) && (*(scim::word *)(FileAllocationTable + FatIndex) >> 4) == 0) return i;
+                    if(!(i & 1) && (*(scim::word *)(FileAllocationTable + FatIndex) & 0xfff) == 0) return i;
+                }
             }
 
     };

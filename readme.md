@@ -1,6 +1,6 @@
 # Changelog
 
-## SCIM - Alpha 1.3 (Sunday 27th August - Wednesday 30th August)
+## SCIM - Alpha 1.3 (Sunday 27th August - Sunday 17th September)
 
 ### Changes
 #### 27th August 2023
@@ -13,12 +13,29 @@
 - added list mode which outputs a list of all entries present in the root directory
 - added -e/--entry for specifying the target entry to work with
 - added read mode which prints the contents of a file entry to stdout
+- added delete mode which deletes a file entry
+- added scim::FAT12::Disk.DeleteEntry() function
+#### 31st August 2023
+- added scim::FAT12::Disk.WriteEntry() function
+- added scim::FAT12::Disk.WriteFAT() function
+- added scim::FAT::NAME_SPECIAL enum
+- added special character handling to list mode
+- added write mode which copies a file from the host disk to a disk image file
+#### 10th September 2023
+- added scim::FAT::FILE_ATTRIBUTES enum
+#### 11th - 17th September 2023
+- finished write mode
 
 ### Issues
 #### new
-none found
+- no check in any of the FAT functions that Image is not a NULL pointer. Can't be exploited in SCIM but can be if fat.hpp is used in another program. Don't currently have plans of fixing it just get good lmao
 #### from previous versions
 - There is no check to make sure the values in the FAT header are valid which can lead to unexpected behavious in functions that require them
+
+### Fixes
+#### From SCIM Alpha 1.2
+##### 30th August 2023
+- SCIM is now memory safe
 
 ## SCIM - Alpha 1.2 (Wednesday 16th August)
 
