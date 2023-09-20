@@ -29,7 +29,7 @@ BOOTSECT_LDFLAGS=-Ttext 0x7c00 -e 0x7c00 --oformat binary
 SCIM_CXXFLAGS=-Wall -Werror -Wpedantic
 
 # ===Disk Image Information===
-VERSION=BIOS_READ_TEST
+VERSION=Alpha_1.0
 DISK_NAME=SawconOS-Full-$(VERSION).img
 SECT_COUNT=2880
 

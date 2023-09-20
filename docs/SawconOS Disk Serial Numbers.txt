@@ -1,0 +1,17 @@
+0x ZZ Y xxx (5C)
+
+ZZ: last 2 digits of the year that the disk was formatted
+example: 23 for disks formatted in 2023
+
+Y: version category that the disk was formatted in. Either A, B, or C
+    - A for alpha versions
+    - B for beta versions
+    - C for full releases
+
+xxx: version that the disk was formatted in without the decimal points
+example: 100 for disks formatted in a 1.0.0 version
+
+(5C): 5awCon. Indicates an official serial number
+
+all signatures used in official Sawcon versions:
+0x23A1005C in the SawconOS Bootloader version Alpha 1.0

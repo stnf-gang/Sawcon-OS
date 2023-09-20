@@ -1,5 +1,22 @@
 # Changelog
 
+## SawconOS Bootloader - Alpha 1.0 (Sunday 17th September - Wednesday 20th September) (Work in progress)
+### Changes
+#### Sunday 17th September 2023
+- removed all test code
+- added the FAT12 header
+#### Monday 18th September 2023
+- SawconOS Bootloader now gets drive geometry from the BIOS
+- SawconOS Bootloader now sets the video mode to VGA text mode 80x25 16 colours
+#### Tuesday 19th September 2023
+- Added LBA2CHS function
+- Added ReadSectors function
+#### Wednesday 20th September 2023
+- added ReadRootDirectory function
+- added FindEntry function
+- added ReadFAT function
+- added ReadEntry function
+
 ## SCIM - Alpha 1.3 (Sunday 27th August - Sunday 17th September)
 
 ### Changes
