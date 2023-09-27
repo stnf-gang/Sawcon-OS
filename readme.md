@@ -1,6 +1,13 @@
 # Changelog
 
-## SawconOS Bootloader - Alpha 1.0 (Sunday 17th September - Wednesday 20th September) (Work in progress)
+## SawconOS Bootloader - Alpha 1.01 (Saturday 23rd September)
+### Changes
+#### Saturday 23rd September 2023
+- fixed a typo in the comments
+- SawconOS Bootloader now resets the segment registers before passing control to the SawconOS System
+- SawconOS Bootloader now passes the drive number to the SawconOS System
+
+## SawconOS Bootloader - Alpha 1.0 (Sunday 17th September - Wednesday 20th September)
 ### Changes
 #### Sunday 17th September 2023
 - removed all test code

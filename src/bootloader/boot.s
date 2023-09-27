@@ -1,11 +1,11 @@
 # boot.s
 #
 # main source file for the boot sector of the SawconOS Bootloader
+# This file was written for SawconOS Bootloader Alpha 1.01
 # Compiled using GNU as
-# This file was written for SawconOS Bootloader Alpha 1.0
 # 
 # Written: Monday 7th August 2023
-# Last Updated: Wednesday 20th September 2023
+# Last Updated: Saturday 23rd September 2023
 # 
 # Written by Gabriel Jickells
 
@@ -20,7 +20,7 @@
 .equ DISK_FUNCTIONS, 0x13               # int $DISK_FUNCTIONS
 .equ VIDEO_FUNCTIONS, 0x10              # int $VIDEO_FUNCTIONS
 .equ VGA_TEXT_80x25_16COLOUR, 0x02      # mov $VIDEO_SETMODE, %ah; mov $VGA_TEXT_80x25_16COLOUR, %al ... int $VIDEO_FUNCTIONS
-.equ DISK_RESET, 0x00                   # mov $DISK_RESET, %ah ... int $DISK_FUNTIONS
+.equ DISK_RESET, 0x00                   # mov $DISK_RESET, %ah ... int $DISK_FUNCTIONS
 .equ FAT_ENTRY_SIZE, 32                 # measured in bytes
 .equ FIRST_CLUSTER_LOW_OFFSET, 26       # byte offset of the low first cluster value in a directory entry
 .equ CLUSTER_END, 0xff8                 # do not try to read this cluster or anything above it
@@ -240,13 +240,22 @@ main:
                 push %ax
             jmp ReadEntry.loop
     ReadEntry.end:
-        ljmp $0, $0x8e00
+        # reset any segment registers that might have changed
+        xor %ax, %ax
+        mov %ax, %es
+        # reset the stack
+        mov $STAGE2_LOCATION, %sp
+        mov %sp, %bp
+        # store the boot drive in %dl
+        movb (DriveNumber), %dl
+        # jump to the data
+        ljmp $EXPECTED_CS, $STAGE2_LOCATION
     hang:
         cli                             # stop hardware interrupts from unhalting the cpu
         hlt
 
 DataSectionLBA: .word 0x0000
-FileName: .ascii "PROGLOADBIN"
+FileName: .ascii "SAWCON  BIN"
 
 .org 510                                # the last 2 bytes of the boot sector are used by the BIOS to check if a disk is bootable
 .word 0xAA55                            # bytes 0x55, 0xAA are used as the BIOS boot signature at the end of the boot sector
