@@ -5,7 +5,7 @@
 # Compiled using GNU as
 # 
 # Written: Monday 7th August 2023
-# Last Updated: Saturday 23rd September 2023
+# Last Updated: Monday 9th October 2023
 # 
 # Written by Gabriel Jickells
 
@@ -16,7 +16,7 @@
 .equ DISK_READSECT, 0x02                # mov $DISK_READSECT, %ah ... int $DISK_FUNCTIONS
 .equ VIDEO_TTY, 0x0e                    # mov $VIDEO_TTY, %ah ... int $VIDEO_FUNCTIONS
 .equ VIDEO_SETMODE, 0x00                # mov $VIDEO_SETMODE, %ah ... int $VIDEO_FUNCTIONS
-.equ DISK_GETPARAMS, 0x08               # mov $DISK_GETPARAMS ... int $DISK_FUNCTIONS
+.equ DISK_GETPARAMS, 0x08               # mov $DISK_GETPARAMS, %ah ... int $DISK_FUNCTIONS
 .equ DISK_FUNCTIONS, 0x13               # int $DISK_FUNCTIONS
 .equ VIDEO_FUNCTIONS, 0x10              # int $VIDEO_FUNCTIONS
 .equ VGA_TEXT_80x25_16COLOUR, 0x02      # mov $VIDEO_SETMODE, %ah; mov $VGA_TEXT_80x25_16COLOUR, %al ... int $VIDEO_FUNCTIONS
@@ -48,8 +48,8 @@ LargeSectors: .long 0                   # used instead of total sectors if there
 DriveNumber: .byte 0x00                 # should be replaced with the value in %dl at startup
 _reserved: .byte 0                      # used in windows NT
 Signature: .byte 0x28                   # tells the driver that this is a valid file system. Must be 0x28 or 0x29
-SerialID: .long 0x23A1005C              # Serial number of the disk
-VolumeLabel: .ascii "SAWCON  100"       # name of the disk
+SerialID: .long 0x23A1035C              # Serial number of the disk
+VolumeLabel: .ascii "SAWCON  103"       # name of the disk
 SystemID: .ascii "FAT12   "             # specify the file system
 
 # reset segment registers to known values and set up the stack
@@ -208,6 +208,7 @@ main:
             push %ax                    # save the current cluster
             call Cluster2LBA            # get the LBA to read from
             movb (SectorsPerCluster), %cl
+            movb (DriveNumber), %dl
             call ReadSectors
             # calculate the next memory location to read into
             movw (BytesPerSector), %ax
@@ -248,6 +249,9 @@ main:
         mov %sp, %bp
         # store the boot drive in %dl
         movb (DriveNumber), %dl
+        # store the drive signature in %ax and %bx
+        movw (SerialID), %bx            # lower 16 bits in %bx (the value is stored in little endian)
+        movw (SerialID + 2), %ax        # higher 16 bits in %ax
         # jump to the data
         ljmp $EXPECTED_CS, $STAGE2_LOCATION
     hang:

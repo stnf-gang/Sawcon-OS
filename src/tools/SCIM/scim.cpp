@@ -6,7 +6,7 @@
 // compiled using g++
 // 
 // Written: Saturday 12th August 2023
-// Last Updated: Sunday 10th September 2023
+// Last Updated: Saturday 7th October 2023
 // 
 // Written by Gabriel Jickells
 
@@ -40,8 +40,8 @@ int main(int argc, char **argv) {
     }
 
     // information that will be specified by the arguments passed to the tool
-    char *DiskImageFileName = NULL, *TargetEntryName = NULL, *HostFileName = NULL;
-    bool DiskImageSpecified = false, TargetEntrySpecified = false, HostFileSpecified = false;
+    char *DiskImageFileName = NULL, *TargetEntryName = NULL, *HostFileName = NULL, *str_TargetSerialID = NULL;
+    bool DiskImageSpecified = false, TargetEntrySpecified = false, HostFileSpecified = false, TargetSerialIDSpecified = false;
 
     // - parse any other arguments
     // - i starts at 1 instead of 0 because argv[0] is the program name
@@ -78,6 +78,15 @@ int main(int argc, char **argv) {
                }
                HostFileName = argv[++i];
                HostFileSpecified = true;
+        } else if(!strcmp(argv[i], "-s") || !strcmp(argv[i], "--serial")) {
+            // make sure the argument is being used correctly
+            if(i + 1 == argc || i + 1 == scim::MODE_INDEX ||
+               TargetSerialIDSpecified == true) {
+                std::cerr << "SCIM: Error - Invalid usage of switch \"" << argv[i] << "\"\n";
+                return -2;
+               }
+            str_TargetSerialID = argv[++i];
+            TargetSerialIDSpecified = true;
         }
     }
 
@@ -101,6 +110,7 @@ int main(int argc, char **argv) {
     scim::FAT::DirectoryEntry_t *TargetEntry;
     scim::byte *EntryBuffer = NULL;
     FILE *HostFileStream;
+    char *SerialInvalidChar = NULL;
 
     switch(mode) {
         case scim::M_LIST:
@@ -206,6 +216,28 @@ int main(int argc, char **argv) {
 
             FileSystem.Clean();
             break;
+
+            case scim::M_SERIALISE:
+            case scim::M_SERIALIZE:
+                if(!FileSystem.Initialise(ImageStream)) {
+                    std::cerr << "SCIM: Error - Could not initialise file system\n";
+                    return -16;
+                }
+                if(!TargetSerialIDSpecified) {
+                    std::cerr << "SCIM: Error - Target Serial ID not specified\n";
+                    return -17;
+                }
+                FileSystem.FS_Info.EBPB.SerialID = strtol(str_TargetSerialID, &SerialInvalidChar, 16);
+                if(*SerialInvalidChar) {
+                    std::cerr << "SCIM: Error - Invalid character in the serial ID\n";
+                    return -18;
+                }
+                if(!FileSystem.WriteBootRecord(ImageStream)) {
+                    std::cerr << "SCIM: Error - Could not update boot record\n";
+                    return -19;
+                }
+                FileSystem.Clean();
+                break;
 
         default:
             std::cerr << "SCIM: Error - Unexpected Mode\n";

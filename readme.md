@@ -1,13 +1,31 @@
 # Changelog
 
-## SawconOS Bootloader - Alpha 1.01 (Saturday 23rd September)
+## SCIM - Alpha 1.4 (Saturday 7th October 2023)
+### Changes
+#### Saturday 7th October 2023
+- added serialise/serialize mode for changing the serial number of the drive
+- added -s/--serial switch for specifying what to change the serial number to
+
+## SawconOS System - Alpha 1.0 (Tuesday 3rd October 2023 - Monday 9th October 2023)
+- added PROGLOAD which can load any file from the root directory of the boot disk
+- made some crude system libraries that programs can link with
+
+## SawconOS Bootloader - Alpha 1.02 (Tuesday 3rd October 2023)
+### Changes
+#### Tuesday 3rd October 2023
+- SawconOS Bootloader now passes the drive signature to the SawconOS System
+- Changed signature to 23A1025C
+
+## SawconOS Bootloader - Alpha 1.01 (Saturday 23rd September 2023)
 ### Changes
 #### Saturday 23rd September 2023
 - fixed a typo in the comments
 - SawconOS Bootloader now resets the segment registers before passing control to the SawconOS System
 - SawconOS Bootloader now passes the drive number to the SawconOS System
+### Issues
+- Drive signature should have changed to 23A1015C but didn't
 
-## SawconOS Bootloader - Alpha 1.0 (Sunday 17th September - Wednesday 20th September)
+## SawconOS Bootloader - Alpha 1.0 (Sunday 17th September 2023 - Wednesday 20th September 2023)
 ### Changes
 #### Sunday 17th September 2023
 - removed all test code
@@ -24,7 +42,7 @@
 - added ReadFAT function
 - added ReadEntry function
 
-## SCIM - Alpha 1.3 (Sunday 27th August - Sunday 17th September)
+## SCIM - Alpha 1.3 (Sunday 27th August 2023 - Sunday 17th September 2023)
 
 ### Changes
 #### 27th August 2023
@@ -61,7 +79,7 @@
 ##### 30th August 2023
 - SCIM is now memory safe
 
-## SCIM - Alpha 1.2 (Wednesday 16th August)
+## SCIM - Alpha 1.2 (Wednesday 16th August 2023)
 
 ### Changes
 - added scim::FAT12::Disk.ReadFile() for reading the data of a file from its meta-data

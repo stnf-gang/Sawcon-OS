@@ -5,7 +5,7 @@
 // This version of the header was written for SCIM Alpha 1.3
 //
 // Written: Sunday 13th August 2023
-// Last Updated: Sunday 17th September 2023
+// Last Updated: Saturday 7th October 2023
 //
 // Written by Gabriel Jickells
 
@@ -107,7 +107,7 @@ namespace FAT12 {
         scim::byte DriveNumber;
         scim::byte _reserved;                           // used for windows NT flags. Not that important for a generic driver but should probably be kept in mind
         scim::byte Signature;                           // used to specify a valid file system. Must be either 0x28 or 0x29
-        scim::byte SerialID[4];                         // serial number of the drive. Sometimes set to date and time of the formatting but usually just zeroed out
+        scim::dword SerialID;                           // serial number of the drive. Sometimes set to date and time of the formatting but usually just zeroed out
         char VolumeLabel[11];                           // shows up as the disk name in file managers
         char SystemID[8];                               // usually contains "FAT12   " but this isn't standard so shouldn't be used for anything driver related
     } __attribute__((packed)) ExtendedBiosParameterBlock_t; // __attribute__((packed)) tells the compiler not to add any padding bytes. Usually this is done so null terminated arrays like strings end where they're supposed to. This is not the case in the BPB where every byte counts
@@ -310,6 +310,15 @@ namespace FAT12 {
                     }
                 }
                 return false;
+            }
+
+            /// @brief Writes the data currently in FS_Info into the boot record of the disk. Other data in the boot record is unaffected
+            /// @param Image the image to write to
+            /// @return true for success, false for failure
+            bool WriteBootRecord(FILE *Image) {
+                if(fseek(Image, 0, SEEK_SET) < 0) return false;
+                if(!fwrite(&FS_Info, sizeof(BootRecord_t), 1, Image)) return false; 
+                return true;
             }
 
         private:

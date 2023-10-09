@@ -1,0 +1,12 @@
+misc_functions.o is a 16 bit library
+
+functions:
+
+void putc(char __c)
+    info:
+        - prints a character using BIOS interrupts
+        - expects the screen to be in text mode
+
+void puts(char *__s)
+    info:
+        - prints a NULL terminated ASCII string using putc

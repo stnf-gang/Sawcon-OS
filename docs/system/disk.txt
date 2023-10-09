@@ -1,0 +1,34 @@
+disk.o is a 16 bit library
+
+functions:
+
+int __cdecl ReadSectors(unsigned char _drive, unsigned short _LBA, unsigned char _count, unsigned char* __far _Buffer)
+    info:
+        - reads sectors from a disk using BIOS
+        - expects the disk to use CHS addressing
+    returns:
+        - 0 for success
+        - 1 for failure
+
+int __cdecl ResetDisk(unsigned char _drive)
+    info:
+        - resets the disk system for a given drive using BIOS
+    returns:
+        - 0 for success
+        - 1 for failure
+
+int __cdecl GetDiskGeometry(unsigned char _drive, Geometry_t *_geometryOut)
+    info:
+        - gets the geometry information and stores it in a Geometry_t
+        - the Geometry_t structure to store the information is provided by the caller
+    returns:
+        - 0 for success
+        - 1 for failure
+
+void __cdecl LBA2CHS(unsigned short _LBA, unsigned short *_cylinderOut, unsigned char *_headOut, unsigned short *_sectorOut, Geometry_t *_geometry)
+    info:
+        - computes the CHS address from an LBA value
+        - requires the drive geometry to have already been read
+
+typedefs:
+    Geometry_t = struct { unsigned short SectorsPerTrack, unsigned short Heads }

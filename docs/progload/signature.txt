@@ -1,0 +1,14 @@
+signature.o is a 16 bit library
+
+functions:
+
+int checkBootSignature(unsigned long Signature)
+    info:
+        - checks the signature for compatibility
+    return:
+        - 0 = the signature is up to date
+        - 1 = the signature is older than the current
+        - 2 = the signature is newer than the current
+        - 3 = the signature is not an official signature
+        - 4 = the signature is an alpha signature
+        - 5 = the signature is a beta signature

@@ -1,0 +1,10 @@
+Bootloader Alpha 1.02
+    - %ax = high 16 bits of drive signature
+    - %bx = low 16 bits of drive signature
+    - %dl = boot drive number
+
+Bootloader Alpha 1.01
+    - %dl = boot drive number
+
+Bootloader Alpha 1.0
+    - bootloader does not pass any information to the system

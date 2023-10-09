@@ -2,10 +2,10 @@
 //
 // utilities for specifying modes in SCIM
 // This file was written as part of the Sawcon Image Manipulator
-// This version of the header was written for SCIM Alpha 1.3
+// This version of the header was written for SCIM Alpha 1.4
 //
 // Written: Sunday 27th August 2023
-// Last Updated: Wednesday 30th August 2023
+// Last Updated: Saturday 7th August 2023
 //
 // Written by Gabriel Jickells
 
@@ -18,6 +18,8 @@ const char *ValidModes[] {
     "read",
     "delete",
     "write",
+    "serialise",
+    "serialize",                // alternate spelling for the serialise mode
     NULL                        // end of list
 };
 
@@ -27,4 +29,6 @@ enum MODES {
     M_READ,
     M_DELETE,
     M_WRITE,
+    M_SERIALISE,
+    M_SERIALIZE,                // alternate spelling for serialise
 };

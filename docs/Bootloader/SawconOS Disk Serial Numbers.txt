@@ -1,3 +1,5 @@
+The signature refers to the bootloader version not the system version
+
 0x ZZ Y xxx (5C)
 
 ZZ: last 2 digits of the year that the disk was formatted
@@ -9,9 +11,12 @@ Y: version category that the disk was formatted in. Either A, B, or C
     - C for full releases
 
 xxx: version that the disk was formatted in without the decimal points
-example: 100 for disks formatted in a 1.0.0 version
+example: 100 for disks formatted in a 1.00 version
 
 (5C): 5awCon. Indicates an official serial number
 
 all signatures used in official Sawcon versions:
-0x23A1005C in the SawconOS Bootloader version Alpha 1.0
+0x23A1005C (Alpha 1.00)
+0x23A1015C (Alpha 1.01)
+0x23A1025C (Alpha 1.02)
+0x23A1035C (Alpha 1.03)
