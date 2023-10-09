@@ -1,5 +1,12 @@
 # Changelog
 
+## SawconOS Bootloader - Alpha 1.03 (Monday 9th October 2023)
+### Changes
+#### Monday 9th September 2023
+- Changed signature to 23A1035C
+### Fixes
+- Fixed a bug where the drive number was not set before reading a cluster
+
 ## SCIM - Alpha 1.4 (Saturday 7th October 2023)
 ### Changes
 #### Saturday 7th October 2023
