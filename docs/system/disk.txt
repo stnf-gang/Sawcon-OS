@@ -2,7 +2,7 @@ disk.o is a 16 bit library
 
 functions:
 
-int __cdecl ReadSectors(unsigned char _drive, unsigned short _LBA, unsigned char _count, unsigned char* __far _Buffer)
+int __cdecl ReadSectors(unsigned char _drive, unsigned short _LBA, unsigned char _count, unsigned char* __far _Buffer, Geometry_t *_geometry)
     info:
         - reads sectors from a disk using BIOS
         - expects the disk to use CHS addressing

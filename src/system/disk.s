@@ -4,7 +4,7 @@
 # Written for SawconOS System Alpha 1.0
 # 
 # Written: Sunday 8th October 2023
-# Last Updated: Monday 9th October 2023
+# Last Updated: Tuesday 10th October 2023
 # 
 # Written by Gabriel Jickells
 
@@ -35,6 +35,7 @@ ReadSectors:
     push $0                             # unsigned short _head
     push $0                             # unsigned short _sector
     pusha                               # save the general purpose registers
+    push %es                            # %es will be destroyed but is not saved by pusha
     # BIOS does not support reading from disks with LBA values
     # equivalent C code: LBA2CHS(_LBA, &_cylinder, &_head, &_sectorm _geometry);
     pushw 14(%bp)                       # arg4 = _geometry
@@ -46,7 +47,7 @@ ReadSectors:
     push %ax                            # arg1 = &_cylinder
     push 6(%bp)                         # arg0 = _LBA
     call LBA2CHS                        # LBA2CHS(arg0,arg1,arg2,arg3, arg4);
-    add $2, %sp                         # remove the arguments from the stack
+    add $2 * 5, %sp                     # remove the arguments from the stack
     mov $3, %di                         # store the retry count in %di
     ReadSectors.try:
         test %di, %di                   # check for any remaining retries
@@ -80,6 +81,7 @@ ReadSectors:
     ReadSectors.failure:
         mov $READSECT_FAIL, %ax
     ReadSectors.end:
+        pop %es
         popa                            # restore any destroyed registers
         mov %bp, %sp                    # remove the local variables from the stack
         pop %bp
@@ -110,6 +112,7 @@ GetDiskGeometry:
     push %bp
     mov %sp, %bp
     pusha                               # save any registers that might be destroyed
+    push %es
     mov $DISK_GETPARAMS, %ah
     mov 4(%bp), %dl
     # %es:%di needs to zeroed out on some BIOSes to avoid bugs
@@ -131,6 +134,7 @@ GetDiskGeometry:
     GetDiskGeometry.fail:
         mov $GETPARAMS_FAIL, %ax
     GetDiskGeometry.end:
+        pop %es
         popa                            # restore any registers that the caller might need
         mov %bp, %sp
         pop %bp
