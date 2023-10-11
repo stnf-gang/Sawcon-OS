@@ -13,7 +13,7 @@
 - added serialise/serialize mode for changing the serial number of the drive
 - added -s/--serial switch for specifying what to change the serial number to
 
-## SawconOS System - Alpha 1.0 (Tuesday 3rd October 2023 - Monday 9th October 2023)
+## SawconOS System - Alpha 1.0 (Tuesday 3rd October 2023 - Wednesday 11th October 2023)
 - added PROGLOAD which can load any file from the root directory of the boot disk
 - made some crude system libraries that programs can link with
 

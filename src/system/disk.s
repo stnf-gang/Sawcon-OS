@@ -4,7 +4,7 @@
 # Written for SawconOS System Alpha 1.0
 # 
 # Written: Sunday 8th October 2023
-# Last Updated: Tuesday 10th October 2023
+# Last Updated: Wednesday 11th October 2023
 # 
 # Written by Gabriel Jickells
 
@@ -34,7 +34,7 @@ ReadSectors:
     push $0                             # unsigned short _cylinder
     push $0                             # unsigned short _head
     push $0                             # unsigned short _sector
-    pusha                               # save the general purpose registers
+    push %di                            # %di is not a scratch register
     push %es                            # %es will be destroyed but is not saved by pusha
     # BIOS does not support reading from disks with LBA values
     # equivalent C code: LBA2CHS(_LBA, &_cylinder, &_head, &_sectorm _geometry);
@@ -82,7 +82,7 @@ ReadSectors:
         mov $READSECT_FAIL, %ax
     ReadSectors.end:
         pop %es
-        popa                            # restore any destroyed registers
+        pop %di
         mov %bp, %sp                    # remove the local variables from the stack
         pop %bp
         ret

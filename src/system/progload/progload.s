@@ -4,7 +4,7 @@
 # This file was written for SawconOS System Alpha 1.0
 #
 # Written: Tuesday 3rd October 2023
-# Last Updated: Tuesday 10th October 2023
+# Last Updated: Wednesday 11th October 2023
 #
 # Written by Gabriel Jickells
 
@@ -38,6 +38,7 @@
 .equ PROG_OFFSET, 0x5000
 
 .equ BPB_BYTESPERSECTOR_OFFSET, 11
+.equ BPB_SECTORSPERCLUSTER_OFFSET, 13
 .equ BPB_RESERVEDSECTS_OFFSET, 14
 .equ BPB_TOTALFATS_OFFSET, 16
 .equ BPB_ROOTDIRENTRIES_OFFSET, 17
@@ -156,12 +157,16 @@ entry:
         xor %dx, %dx                            # div expects %dx to be empty
         divw (BOOTSECTOR_OFFSET + BPB_BYTESPERSECTOR_OFFSET)
         push %ax                                # %ax now contains the sector count
+        movw %ax, (g_DataSectionLBA)            # save for when the LBA is calculated
         # calculate the LBA of the root directory
         # since the count was the size of a byte, %ah is already empty
         movb (BOOTSECTOR_OFFSET + BPB_TOTALFATS_OFFSET), %al
         mulw (BOOTSECTOR_OFFSET + BPB_SECTORSPERFAT_OFFSET)
         addw (BOOTSECTOR_OFFSET + BPB_RESERVEDSECTS_OFFSET), %ax
         push %ax                                # %ax = bootrecord.totalfats * bootrecord.sectorsPerFAT + bootrecord.reservedSectors
+        mov (g_DataSectionLBA), %bx
+        add %bx, %ax
+        mov %ax, (g_DataSectionLBA)
         # get the boot drive
         xor %ax, %ax
         mov (g_bootDrive), %al
@@ -228,9 +233,19 @@ entry:
             add $SIZEOF_WORD * 3, %sp
             jmp entry.command               # get the next command
         entry.command.execute:
-                # todo
-            # callf $PROG_SEGMENT, $PROG_OFFSET
+            pushw (g_bootDrive)
+            pushw %ax                       # pointer to entry to read
+            call ReadEntry
+            add $SIZEOF_WORD * 2, %sp
+            cmp $0, %ax
+            je entry.command.execute.success
+            push $str_NoExecute
+            call puts
+            add $SIZEOF_WORD, %sp
             jmp entry.command
+            entry.command.execute.success:
+                lcall $PROG_SEGMENT, $PROG_OFFSET
+                jmp entry.command
     entry.hang:
         cli
         hlt
@@ -279,7 +294,7 @@ FindFile:
         pop %bp
         ret
 
-# int __cdecl ReadSectors(DirectoryEntry_t *Entry, void *BufferOut)
+# int __cdecl ReadSectors(DirectoryEntry_t *Entry, char disk)
 # returns 0 for success and 1 for failure
 ReadEntry:
     push %bp
@@ -287,7 +302,72 @@ ReadEntry:
     mov 4(%bp), %si
     mov FIRST_CLUSTER_LOW_OFFSET(%si), %ax # ax = Entry->FirstClusterLow
     ReadEntry.loop:
-        # to do
+        cmp $0xff8, %ax
+        jae ReadEntry.success
+        push %ax                                        # save the current cluster number
+        # read the current cluster
+        push $g_BootDriveGeometry
+        push $PROG_OFFSET
+        push $PROG_SEGMENT
+        pushw (BOOTSECTOR_OFFSET + BPB_SECTORSPERCLUSTER_OFFSET)
+        # convert the cluster number to an LBA address
+        push %ax
+        call Cluster2LBA
+        add $SIZEOF_WORD, %sp
+        # pass the rest of the arguments
+        push %ax                                        # %ax contains the return value
+        push 6(%bp)                                     # disk
+        call ReadSectors
+        add $SIZEOF_WORD * 6, %sp
+        # check the return value
+        cmp $READSECT_SUCCESS, %ax
+        jne ReadEntry.failure
+        # calculate the next address to read into
+        movw (BOOTSECTOR_OFFSET + BPB_BYTESPERSECTOR_OFFSET), %ax
+        movw (BOOTSECTOR_OFFSET + BPB_SECTORSPERCLUSTER_OFFSET), %cx
+        xor %ch, %ch
+        mul %cx
+        shr $4, %ax
+        mov %es, %dx
+        add %ax, %dx
+        mov %dx, %es
+        # calculate the fat index of the next cluster (CurrentCluster * 3 / 2)
+        pop %ax
+        mov $3, %cx
+        mul %cx
+        mov $2, %cx
+        xor %dx, %dx                                    # empty %dx for div
+        div %cx
+        # get the value from the FAT
+        mov $FAT_OFFSET, %si
+        add %ax, %si
+        mov (%si), %ax
+        # remove the extra four bits to make the 16 bit %ax hold a 12 bit value
+        test %dl, %dl
+        jz ReadEntry.even
+        ReadEntry.odd:
+            shr $4, %ax
+        ReadEntry.even:
+            and $0xfff, %ax
+            jmp ReadEntry.loop
+    ReadEntry.success:
+        mov $0, %ax
+        jmp ReadEntry.end
+    ReadEntry.failure:
+        mov $1, %ax
+    ReadEntry.end:
+        mov %bp, %sp
+        pop %bp
+        ret
+
+# unsigned short Cluster2LBA(unsigned short cluster)
+Cluster2LBA:
+    push %bp
+    mov %sp, %bp
+    mov 4(%bp), %ax
+    sub $2, %ax
+    mulb (BOOTSECTOR_OFFSET + BPB_SECTORSPERCLUSTER_OFFSET)
+    addw (g_DataSectionLBA), %ax
     mov %bp, %sp
     pop %bp
     ret
@@ -309,7 +389,8 @@ str_NoBootRecord: .asciz "!ERROR! - Could not read boot record\n\r"
 str_NoRootDirectory: .asciz "!ERROR! - Could not read root directory\n\r"
 str_NoFileH: .asciz "!ERROR! - Could not find file \""
 str_NoFileL: .asciz "\"\n\r"
-str_NoFAT: .asciz "!ERROR! = Could not read the FAT\n\r"
+str_NoFAT: .asciz "!ERROR! - Could not read the FAT\n\r"
+str_NoExecute: .asciz "!ERROR! - Could not read the file\n\r"
 
 str_OutdatedSignature: .asciz "!WARNING! - Outdated version of the bootloader detected\n\r"
 str_AlphaSignature: .asciz "!WARNING! - Alpha version of the bootloader detected. Possible stability issues\n\r"
@@ -326,3 +407,4 @@ g_KB_Buffer:
     .byte 0x00
     .endr
     .byte 0                                 # NULL terminator for printing
+g_DataSectionLBA: .word 0x0000
