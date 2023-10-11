@@ -14,6 +14,7 @@ BIN=bin
 TMP=$(BIN)/tmp
 SYSTEM_LIBS_BIN=$(BIN)/system
 PROGLOAD_LIBS_BIN=$(SYSTEM_LIBS_BIN)/progload
+SOFTWARE_BIN=$(BIN)/software
 # ==Source Code Directories==
 SRC=src
 BOOTLOADER_SRC=$(SRC)/bootloader
@@ -21,6 +22,8 @@ TOOLS_SRC=$(SRC)/tools
 SCIM_SRC=$(TOOLS_SRC)/SCIM
 SYSTEM_SRC=$(SRC)/system
 PROGLOAD_SRC=$(SYSTEM_SRC)/progload
+SOFTWARE_SRC=$(SRC)/software
+PROGLIST_SRC=$(SOFTWARE_SRC)/proglist
 
 # ===Compilers & Tools===
 TARGET_ASM=as
@@ -34,6 +37,9 @@ SCIM_CXXFLAGS=-Wall -Werror -Wpedantic
 PROGLOAD_LDFLAGS=-T $(PROGLOAD_SRC)/progload.ld
 PROGLOAD_ASMFLAGS=-I $(SYSTEM_SRC)
 PROGLOAD_LIBS=$(SYSTEM_LIBS_BIN)/misc_functions.o $(PROGLOAD_LIBS_BIN)/signature.o $(SYSTEM_LIBS_BIN)/disk.o
+SOFTWARE_ASMFLAGS=-I $(SYSTEM_SRC)
+SOFTWARE_LDFLAGS=-T $(SOFTWARE_SRC)/software.ld
+PROGLIST_LIBS=$(SYSTEM_LIBS_BIN)/misc_functions.o
 
 # ===Disk Image Information===
 VERSION=Alpha_1.0
@@ -41,10 +47,11 @@ DISK_NAME=SawconOS-Full-$(VERSION).img
 SECT_COUNT=2880
 
 # builds a disk image that contains SawconOS
-disk: dirs bootloader system tools_SCIM
+disk: dirs bootloader system software tools_SCIM
 	dd if=/dev/zero of=$(BIN)/$(DISK_NAME) bs=512 count=$(SECT_COUNT)
 	dd if=$(BIN)/SawconOS-Bootloader-boot_sector.bin of=$(BIN)/$(DISK_NAME) conv=notrunc
-	bin/scim write -i $(BIN)/$(DISK_NAME) -f $(BIN)/progload.bin -e "SAWCON  BIN"
+	$(BIN)/scim write -i $(BIN)/$(DISK_NAME) -f $(BIN)/progload.bin -e "SAWCON  BIN"
+	$(BIN)/scim write -i $(BIN)/$(DISK_NAME) -f $(SOFTWARE_BIN)/proglist.bin -e "PROGLISTBIN"
 
 # compiles the SawconOS bootloader, including the boot sector and other files that are required to be in the final disk image
 bootloader: dirs
@@ -59,12 +66,18 @@ system: dirs
 	$(TARGET_ASM) $(SYSTEM_SRC)/disk.s -o $(SYSTEM_LIBS_BIN)/disk.o
 	$(TARGET_LD) $(PROGLOAD_LDFLAGS) $(TMP)/progload.o $(PROGLOAD_LIBS) -o $(BIN)/progload.bin
 
+# compiles the programs for SawconOS System
+software:
+	$(TARGET_ASM) $(SOFTWARE_ASMFLAGS) $(PROGLIST_SRC)/proglist.s -o $(TMP)/proglist.o
+	$(TARGET_LD) $(SOFTWARE_LDFLAGS) $(TMP)/proglist.o $(PROGLIST_LIBS) -o $(SOFTWARE_BIN)/proglist.bin
+
 # creates the compilation destination directories
 dirs:
 	mkdir -p $(BIN)
 	mkdir -p $(TMP)
 	mkdir -p $(SYSTEM_LIBS_BIN)
 	mkdir -p $(PROGLOAD_LIBS_BIN)
+	mkdir -p $(SOFTWARE_BIN)
 
 # runs SawconOS in an emulator
 run:

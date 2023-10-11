@@ -4,7 +4,7 @@
 # Written for SawconOS System Alpha 1.0
 # 
 # Written: Tuesday 3rd October 2023
-# Last Updated: Saturday 7th October 2023
+# Last Updated: Wednesday 11th October 2023
 # 
 # Written by Gabriel Jickells
 
@@ -47,6 +47,31 @@ puts:
         add $SIZEOF_WORD, %sp           # clean the stack
         jmp puts.loop
     puts.end:
+        popa
+        mov %bp, %sp
+        pop %bp
+        ret
+
+# void __cdecl puts_len(char *__s, int _length)
+.globl puts_len
+puts_len:
+    push %bp
+    mov %sp, %bp
+    pusha
+    mov 4(%bp), %si
+    mov 6(%bp), %di
+    puts_len.loop:
+        test %di, %di                   # check for end of string length
+        jz puts_len.end
+        lodsb                           # get the current character in the string
+        test %al, %al                   # check for NULL terminator
+        jz puts_len.end
+        push %ax                        # pass the current character to putc
+        call putc
+        add $SIZEOF_WORD, %sp           # clean the stack
+        dec %di
+        jmp puts_len.loop
+    puts_len.end:
         popa
         mov %bp, %sp
         pop %bp

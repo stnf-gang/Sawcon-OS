@@ -10,3 +10,7 @@ void putc(char __c)
 void puts(char *__s)
     info:
         - prints a NULL terminated ASCII string using putc
+
+void __cdecl puts_len(char *__s, int _length)
+    info:
+        - printf a NULL terminated ASCII string up to a certain number of characters

@@ -12,3 +12,4 @@
 
 .extern putc                        # void __cdecl putc(char __c)
 .extern puts                        # void __cdecl puts(char *__s)
+.extern puts_len                    # void __cdecl puts_len(char *__s, int _length)
